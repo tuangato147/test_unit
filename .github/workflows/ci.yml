@@ -1,0 +1,68 @@
+name: Android CI/CD
+
+# Trigger khi nào chạy workflow
+on:
+  push:
+    branches: [ main, master ]  # Chạy khi push vào branch main hoặc master
+  pull_request:
+    branches: [ main, master ]  # Chạy khi tạo PR vào branch main hoặc master
+  workflow_dispatch:  # Cho phép chạy thủ công từ GitHub UI
+
+jobs:
+  # Job 1: Build và chạy Unit Tests
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Bước 1: Checkout code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Bước 2: Cài đặt JDK
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'  # Thay đổi theo phiên bản JDK trong dự án của bạn
+        distribution: 'temurin'  # (hoặc 'adopt', 'zulu')
+        cache: gradle
+
+    # Bước 3: Cấp quyền thực thi cho Gradle
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+
+    # Bước 4: Chạy Unit Tests
+    - name: Run Unit Tests
+      run: ./gradlew test
+
+    # Bước 5: Build Debug APK
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+
+  # Job 2: Chạy UI Tests (Instrumented Tests) trên Emulator
+  ui-tests:
+    runs-on: macos-latest  # macOS runners thường nhanh hơn cho emulator Android
+    needs: build-and-test  # Chỉ chạy job này sau khi job build-and-test thành công
+
+    steps:
+    # Bước 1: Checkout code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Bước 2: Cài đặt JDK
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    # Bước 3: Cấp quyền thực thi cho Gradle
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+
+    # Bước 4: Cài đặt và chạy emulator
+    - name: Android Emulator Runner
+      uses: ReactiveCircus/android-emulator-runner@v2
+      with:
+        api-level: 29  # Có thể điều chỉnh theo yêu cầu của dự án
+        script: ./gradlew connectedAndroidTest
